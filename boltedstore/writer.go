@@ -23,9 +23,10 @@ import (
 )
 
 type Writer struct {
-	tx   bolted.WriteTx
-	path dbpath.Path
-	mo   store.MergeOperator
+	tx       bolted.WriteTx
+	path     dbpath.Path
+	mo       store.MergeOperator
+	readOnly bool
 }
 
 func (w *Writer) NewBatch() store.KVBatch {
@@ -37,6 +38,9 @@ func (w *Writer) NewBatchEx(options store.KVBatchOptions) ([]byte, store.KVBatch
 }
 
 func (w *Writer) ExecuteBatch(batch store.KVBatch) (err error) {
+	if w.readOnly {
+		return nil
+	}
 
 	emulatedBatch, ok := batch.(*store.EmulatedBatch)
 	if !ok {
@@ -46,7 +50,11 @@ func (w *Writer) ExecuteBatch(batch store.KVBatch) (err error) {
 	for k, mergeOps := range emulatedBatch.Merger.Merges {
 		kb := []byte(k)
 		pth := w.path.Append(k)
-		existingVal := w.tx.Get(pth)
+		existingVal := []byte{}
+		if w.tx.Exists(pth) {
+			existingVal = w.tx.Get(pth)
+		}
+
 		mergedVal, fullMergeOk := w.mo.FullMerge(kb, existingVal, mergeOps)
 		if !fullMergeOk {
 			err = fmt.Errorf("merge operator returned failure")

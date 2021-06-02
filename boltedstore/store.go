@@ -16,6 +16,7 @@ type Store struct {
 	dbpath      dbpath.Path
 	fillPercent float64
 	mo          store.MergeOperator
+	readOnly    bool
 }
 
 func New(mo store.MergeOperator, config map[string]interface{}) (store.KVStore, error) {
@@ -30,16 +31,16 @@ func New(mo store.MergeOperator, config map[string]interface{}) (store.KVStore, 
 		return nil, fmt.Errorf("must specify dbpath")
 	}
 
-	fillPercent, ok := config["fillPercent"].(float64)
+	readOnly, ok := config["readOnly"].(bool)
 	if !ok {
-		fillPercent = 0.5
+		readOnly = false
 	}
 
 	rv := Store{
-		dbpath:      dbpath,
-		tx:          tx,
-		mo:          mo,
-		fillPercent: fillPercent,
+		dbpath:   dbpath,
+		tx:       tx,
+		mo:       mo,
+		readOnly: readOnly,
 	}
 	return &rv, nil
 }
@@ -58,9 +59,10 @@ func (bs *Store) Reader() (store.KVReader, error) {
 
 func (bs *Store) Writer() (store.KVWriter, error) {
 	return &Writer{
-		tx:   bs.tx,
-		path: bs.dbpath,
-		mo:   bs.mo,
+		tx:       bs.tx,
+		path:     bs.dbpath,
+		mo:       bs.mo,
+		readOnly: bs.readOnly,
 	}, nil
 }
 
@@ -92,3 +94,5 @@ func (bs *Store) Compact() error {
 func init() {
 	registry.RegisterKVStore("boltedtx", New)
 }
+
+const Name = "boltedtx"

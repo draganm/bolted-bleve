@@ -6,61 +6,123 @@ import (
 	"github.com/draganm/bolted"
 )
 
-type Iterator struct {
-	it     *bolted.Iterator
-	start  string
-	end    string
-	prefix string
-	valid  bool
+type PrefixIterator struct {
+	it      *bolted.Iterator
+	prefix  string
+	isValid bool
 }
 
-func (i *Iterator) updateValid() {
-	i.valid = !i.it.Done &&
-		strings.HasPrefix(i.it.Key, i.prefix) &&
-		i.it.Key < i.start
-
-}
-
-func (i *Iterator) Seek(k []byte) {
+func (i *PrefixIterator) Seek(k []byte) {
 	ks := string(k)
-	if i.start > ks {
-		ks = i.start
-	}
-
 	if !strings.HasPrefix(ks, i.prefix) {
 		if ks < i.prefix {
 			ks = i.prefix
 		} else {
-			i.valid = false
+			i.isValid = false
 			return
 		}
 	}
-
 	i.it.Seek(ks)
-	i.updateValid()
+	if i.it.Done {
+		i.isValid = false
+		return
+	}
+	if !strings.HasPrefix(i.it.Key, i.prefix) {
+		i.isValid = false
+		return
+	}
+	i.isValid = true
 }
 
-func (i *Iterator) Next() {
+func (i *PrefixIterator) Next() {
 	i.it.Next()
-	i.updateValid()
+	if i.it.Done {
+		i.isValid = false
+		return
+	}
+	if !strings.HasPrefix(i.it.Key, i.prefix) {
+		i.isValid = false
+		return
+	}
+	i.isValid = true
 }
 
-func (i *Iterator) Current() ([]byte, []byte, bool) {
-	return []byte(i.it.Key), i.it.Value, i.valid
+func (i *PrefixIterator) Current() ([]byte, []byte, bool) {
+	return []byte(i.it.Key), i.it.Value, i.isValid
 }
 
-func (i *Iterator) Key() []byte {
+func (i *PrefixIterator) Key() []byte {
 	return []byte(i.it.Key)
 }
 
-func (i *Iterator) Value() []byte {
+func (i *PrefixIterator) Value() []byte {
 	return i.it.Value
 }
 
-func (i *Iterator) Valid() bool {
-	return i.valid
+func (i *PrefixIterator) Valid() bool {
+	return i.isValid
 }
 
-func (i *Iterator) Close() error {
+func (i *PrefixIterator) Close() error {
+	return nil
+}
+
+type RangeIterator struct {
+	it      *bolted.Iterator
+	start   string
+	end     string
+	isValid bool
+}
+
+func (i *RangeIterator) Seek(k []byte) {
+	ks := string(k)
+	if ks < i.start {
+		ks = i.start
+	}
+
+	i.it.Seek(ks)
+
+	if i.it.Done {
+		i.isValid = false
+		return
+	}
+	if i.it.Key >= i.end {
+		i.isValid = false
+		return
+	}
+	i.isValid = true
+}
+
+func (i *RangeIterator) Next() {
+	i.it.Next()
+
+	if i.it.Done {
+		i.isValid = false
+		return
+	}
+	if i.it.Key >= i.end {
+		i.isValid = false
+		return
+	}
+	i.isValid = true
+}
+
+func (i *RangeIterator) Current() ([]byte, []byte, bool) {
+	return []byte(i.it.Key), i.it.Value, i.isValid
+}
+
+func (i *RangeIterator) Key() []byte {
+	return []byte(i.it.Key)
+}
+
+func (i *RangeIterator) Value() []byte {
+	return i.it.Value
+}
+
+func (i *RangeIterator) Valid() bool {
+	return i.isValid
+}
+
+func (i *RangeIterator) Close() error {
 	return nil
 }

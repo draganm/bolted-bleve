@@ -28,9 +28,10 @@ func (r *Reader) MultiGet(keys [][]byte) ([][]byte, error) {
 func (r *Reader) PrefixIterator(prefix []byte) store.KVIterator {
 	it := r.tx.Iterator(r.path)
 
-	rv := &Iterator{
-		it:     it,
-		prefix: string(prefix),
+	rv := &PrefixIterator{
+		it:      it,
+		prefix:  string(prefix),
+		isValid: true,
 	}
 
 	rv.Seek(prefix)
@@ -40,10 +41,11 @@ func (r *Reader) PrefixIterator(prefix []byte) store.KVIterator {
 func (r *Reader) RangeIterator(start, end []byte) store.KVIterator {
 	it := r.tx.Iterator(r.path)
 
-	rv := &Iterator{
-		it:    it,
-		start: string(start),
-		end:   string(end),
+	rv := &RangeIterator{
+		it:      it,
+		start:   string(start),
+		end:     string(end),
+		isValid: true,
 	}
 
 	rv.Seek(start)
